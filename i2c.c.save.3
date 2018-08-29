@@ -1,0 +1,201 @@
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/i2c.h>
+#include <linux/uaccess.h>
+#include <linux/pm.h>
+#include <linux/input-polldev.h>
+#include <linux/dcache.h>
+#include <linux/device.h>
+#include <linux/pm_runtime.h>
+#include <linux/debugfs.h>
+#include <linux/delay.h>
+#include <linux/types.h>
+#include <linux/kdev_t.h>
+#include <linux/fs.h>
+#include <linux/cdev.h>
+
+dev_t deviceno;
+struct class *MPU6050_class;
+
+//device specific structure//
+struct MPU6050_dev
+{
+	struct i2c_client *client;
+	struct cdev cdev;
+	struct kobject *kobj_conf_dir;
+};
+
+// open
+int MPU6050_open(struct inode *inode, struct file *filep)
+{
+
+return 0;
+}
+
+
+// close
+int MPU6050_close(struct inode *inode, struct file *filep)
+{
+
+
+return 0;
+}
+
+//write
+ssize_t MPU6050_write (struct file *filep, const char __user *ubuff, size_t cnt, loff_t *off)
+{
+
+
+return 0;
+
+
+}
+
+
+
+//read
+ssize_t MPU6050_read (struct file *filep, const char __user *ubuff, size_t cnt, loff_t *off)
+{
+
+
+return 0;
+}
+
+/*  ID table */
+static struct i2c_device_id MPU6050_id[] = {
+		{"MPU6050", 0}
+};
+
+
+int MPU6050_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+        int retval;
+	struct MPU6050_dev *dev; // Our device specific structure pointer
+	struct device *MPU6050_device;
+	dev_info(&client->dev, "MPU6050 device probed");
+
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL); //devm_kzalloc() is resource-managed kzalloc(). The memory allocated with resource-managed functions is associated with the device. When the device is detached from the system or the driver for the device is unloaded, that memory is freed automatically. It is possible to free the memory with devm_kfree() if it's no longer needed.
+	if (!dev) {
+		dev_err(&client->dev, "Failed to allocate memory for private data\n");
+		return -ENOMEM;
+	}
+	dev_info(&client->dev, "Allocated memory for private data\n");
+
+	i2c_set_clientdata(client, dev);//Function is used to set the void *driver_data pointer that is part of the struct device, itself part of struct i2c_client. This is a void pointer that is for the driver to use. One would use this pointer mainly to pass driver related data around.  You should use this to keep device-specific data.
+	dev->client = client; // device specific client is pointing to global client
+
+	cdev_init(&dev->cdev,&MPU6050_fops);
+	retval=cdev_add(&dev->cdev,deviceno,1);
+	if (retval)
+	{
+		dev_err(&client->dev, "Cdev_Add Failed");
+		goto cdev_init_fail;
+	}
+	dev_info(&client->dev, "Added cdev Structure\n");
+
+	/* Helps in device node creation */
+	MPU6050_device= device_create(MPU6050_class,NULL,deviceno,NULL,"MPU6050");//A “dev” file will be created, showing the dev_t for the device, if the dev_t is not 0,0.
+	if (MPU6050_device==NULL)
+	{
+		dev_err(&client->dev, "Failed to create ddvice");
+		goto device_register_fail;
+	}
+	dev_info(&client->dev, "Device created\n");
+
+/*	dev->kobj_conf_dir = kobject_create_and_add("pcf8574t_conf", &client->dev.kobj);//This function creates a kobject structure dynamically and registers it with sysfs. When you are finished with this structure, call kobject_put and the structure will be dynamically freed when it is no longer being used.
+	retval = sysfs_create_group(dev->kobj_conf_dir, &pcf8574t_attr_group);//Creates sysfs attribute group
+	if (retval)
+	{
+		dev_err(&client->dev, "Failed to create sysfs attribute group\n");
+		goto sysfs_grp_fail;
+	}
+	dev_info(&client->dev, "Sysfs attribute group created\n");*/
+
+	retval = MPU6050_dev_init(dev);
+	if (retval)
+	{
+		dev_err(&client->dev, "Failed to initialize LCD");
+		goto dev_init_fail;
+	}
+	dev_info(&client->dev, "LCD Initialised\n");
+
+//	pm_runtime_set_active(&client->dev); //make device to power down mode (calls suspend function)
+//	pm_runtime_enable(&client->dev);
+
+	/* After returning from here, the device's suspend function is called
+	 * which pushes the device into low-power state.
+	 * The device's resume will be called as 
+
+	return 0;
+
+	sysfs_grp_fail:
+		device_destroy(MPU6050_class,deviceno);
+	device_register_fail:
+		cdev_del(&dev->cdev);
+	cdev_init_fail:
+		return retval;
+return 0;
+}
+
+
+int MPU6050_remove(struct i2c_client *client)
+{
+
+
+return 0;
+}
+
+
+static const struct file_operations MPU6050_fops = {
+                .open                   = MPU6050_open,
+                .write                  = MPU6050_write,
+                .read                   = MPU6050_read,
+                .release                = MPU6050_close,
+        //      .unlocked_ioctl = MPU6050_ioctl
+};
+
+
+
+static struct i2c_driver MPU6050_driver = {
+                .driver         = {
+                                .name   = "MPU6050",
+//                                .pm     = &MPU6050_pm
+                },
+                .probe          = MPU6050_probe,
+                .remove         = MPU6050_remove,
+                .id_table       = MPU6050_id,
+};
+
+
+
+//constructor
+static int __init MPU6050_Final_init(void)
+{
+	int ret;
+	printk("INIT FUNCTION\n");
+	alloc_chrdev_region(&deviceno,0,1,"MPU6050");
+	MPU6050_class= class_create(THIS_MODULE,"MPU6050");
+	ret = i2c_add_driver(&MPU6050_driver);
+       	if (ret)
+	{
+		printk("Failed to add the i2c driver\n");
+		return ret;
+	}
+	printk("I2C driver added\n");
+	return 0; 
+}
+
+//destructor
+static void __exit MPU6050_Final_exit(void)
+{
+	printk("EXIT\n");
+	i2c_del_driver(&MPU6050_driver);
+	printk("I2C driver deleted\n");
+	class_destroy(MPU6050_class);
+	printk("Class destroyed\n");
+	unregister_chrdev_region(deviceno,1);
+	printk("Unregistered Char Device\n");
+}
+
+module_init(MPU6050_Final_init);
+module_exit(MPU6050_Final_exit);

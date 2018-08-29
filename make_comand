@@ -1,0 +1,21 @@
+make ARCH=arm CROSS_COMPILE=/home/desd/beaglebone/gcc-linaro-arm-linux-gnueabihf-4.9-2014.09_linux/bin/arm-linux-gnueabihf- -C /home/desd/beaglebone/bb-kernel/KERNEL/ SUBDIRS=$PWD
+
+echo MPU6050 0x68> /sys/class/i2c-adapter/i2c-2/new_device
+
+i2cdump -y -r 0x6B-0x6B 2 0x68 b   
+
+
+ifconfig eth0 inet 192.9.200.112 netmask 255.255.255.0 
+
+ifconfig eth0 inet 192.9.200.112
+
+ssh 192.9.200.113
+
+cd /home/desd/Desktop/project/
+
+scp MPU.ko debian@192.9.200.112:/home/debian
+
+scp a.out debian@192.9.200.112:/home/debian
+
+
+echo 0x68 > /sys/class/i2c-adapter/i2c-2/delete_device 

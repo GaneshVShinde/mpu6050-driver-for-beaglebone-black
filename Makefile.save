@@ -1,0 +1,12 @@
+/home/desd/gcc-linaro-arm-linux-gnueabihf-4.9-2014.09_linux/binobj-m := i2c.o
+
+#CROSS =/home/desd8/BeagleBone/gcc-linaro-arm-linux-gnueabihf-4.8-2014.04_linux/bin/arm-linux-gnueabihf- 
+CROSS=arm-linux-gnueabihf-
+KDIR = /home/desd8/BeagleBone/bb-kernel/KERNEL
+
+PWD := $(shell pwd)
+
+all:
+	make -C $(KDIR) ARCH=arm M=$(PWD) CROSS_COMPILE=$(CROSS) modules
+clean:
+	make -C $(KDIR) ARCH=arm M=$(PWD) CROSS_COMPILE=$(CROSS) clean
